@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>SimBridge Camera Engine</string>
+  <key>CFBundleDisplayName</key><string>SimBridge Camera Engine</string>
+  <key>CFBundleIdentifier</key><string>com.fauxcam.app</string>
+  <key>CFBundleExecutable</key><string>FauxCam</string>
+  <key>CFBundleIconFile</key><string>FauxCam</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>26.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSCameraUsageDescription</key><string>SimBridge streams your selected Mac camera into apps running in iOS Simulator.</string>
+</dict>
+</plist>

@@ -1,0 +1,67 @@
+diff --git a/Modules/Injection/Infrastructure/Vectors/SimEnvInjector.swift b/Modules/Injection/Infrastructure/Vectors/SimEnvInjector.swift
+--- a/Modules/Injection/Infrastructure/Vectors/SimEnvInjector.swift
++++ b/Modules/Injection/Infrastructure/Vectors/SimEnvInjector.swift
+@@ -12,7 +12,9 @@ public struct SimEnvInjector: LaunchEnvInjecting {
+     public func install(onDevices udids: [String], dylibPath: String, frameSize: FrameSize) async -> [String] {
+         var succeeded: [String] = []
+         for udid in udids {
+-            let dyldSet = await setenv(udid, Self.dyldVariable, dylibPath)
++            let current = await getenv(udid, Self.dyldVariable)
++            let composed = Self.composed(current: current, adding: dylibPath)
++            let dyldSet = composed == current ? true : await setenv(udid, Self.dyldVariable, composed)
+             let sizeSet = await applySize(frameSize, udid: udid)
+             if dyldSet && sizeSet { succeeded.append(udid) }
+         }
+@@ -25,11 +27,7 @@ public struct SimEnvInjector: LaunchEnvInjecting {
+     }
+ 
+     public func uninstall(fromDevices udids: [String]) async {
+-        await withTaskGroup(of: Void.self) { group in
+-            for udid in udids {
+-                group.addTask { await unsetAll(onDevice: udid) }
+-            }
+-        }
++        for udid in udids { await uninstallOwnValues(onDevice: udid) }
+     }
+ 
+     public func leftoverDevices(among udids: [String], dylibPath: String) async -> [String] {
+@@ -42,8 +40,24 @@ public struct SimEnvInjector: LaunchEnvInjecting {
+         return result
+     }
+ 
+-    private func unsetAll(onDevice udid: String) async {
+-        for key in [Self.dyldVariable, Self.widthVar, Self.heightVar, Self.fpsVar] { await unsetenv(udid, key) }
++    private func uninstallOwnValues(onDevice udid: String) async {
++        if let current = await getenv(udid, Self.dyldVariable) {
++            let remaining = Self.removed(current: current, named: "libFaux.dylib")
++            if remaining.isEmpty { await unsetenv(udid, Self.dyldVariable) }
++            else if remaining != current { _ = await setenv(udid, Self.dyldVariable, remaining) }
++        } else { await unsetenv(udid, Self.dyldVariable) }
++        for key in [Self.widthVar, Self.heightVar, Self.fpsVar] { await unsetenv(udid, key) }
++    }
++    private static func composed(current: String?, adding path: String) -> String {
++        let name = (path as NSString).lastPathComponent
++        var entries = (current ?? "").split(separator: ":").map(String.init)
++            .filter { ($0 as NSString).lastPathComponent != name }
++        entries.append(path)
++        return entries.joined(separator: ":")
++    }
++    private static func removed(current: String, named name: String) -> String {
++        current.split(separator: ":").map(String.init)
++            .filter { ($0 as NSString).lastPathComponent != name }.joined(separator: ":")
+     }
+     @discardableResult
+     private func applySize(_ s: FrameSize, udid: String) async -> Bool {
+@@ -53,6 +67,12 @@ public struct SimEnvInjector: LaunchEnvInjecting {
+         return widthSet && heightSet && fpsSet
+     }
+     @discardableResult
++    private func getenv(_ udid: String, _ key: String) async -> String? {
++        let result = try? await runner.run(xcrun, arguments: ["simctl", "spawn", udid, "launchctl", "getenv", key])
++        let value = result?.outputText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
++        return value.isEmpty ? nil : value
++    }
++    @discardableResult
+     private func setenv(_ udid: String, _ key: String, _ value: String) async -> Bool {
+         let result = try? await runner.run(xcrun, arguments: ["simctl", "spawn", udid, "launchctl", "setenv", key, value])
+         return result?.isSuccess ?? false

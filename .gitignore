@@ -1,0 +1,5 @@
+.context-pilot/
+.build/
+dist/
+.DS_Store
+*.xcuserstate
